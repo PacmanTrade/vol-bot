@@ -1,4 +1,4 @@
-#!/C:\Program Files\Git\git-bash.exe
+#!/bin/bash
 
 echo 'Enter Market Symbol (ie. DOGE/USDT)'
 

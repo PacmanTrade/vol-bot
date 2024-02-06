@@ -48,6 +48,6 @@ if [ $count -lt 8 ]; then
 	exit 1
 fi
 
-node ./src/main.js --apiKey=$apiKey --apiSecret=$apiSecret --spread=$spread --base=$base --stock=$stock --baseexposure=$baseexposure --stockexposure=$stockexposure --basemax=$basemax --stockmax=$stockmax --numorders=$numorders &> logs/$stock.$base.log &
+node ./src/main.js --sessionKey=$sessionKey --spread=$spread --base=$base --stock=$stock --baseexposure=$baseexposure --stockexposure=$stockexposure --basemax=$basemax --stockmax=$stockmax --numorders=$numorders &> logs/$stock.$base.log &
 
 
