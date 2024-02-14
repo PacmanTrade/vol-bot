@@ -54,15 +54,28 @@ fs.writeFileSync("./pidfiles/" + opts.stock + "_" + opts.base + ".pid", process.
 
 const restapi = new xeggexApi(opts.sessionKey);
 
+console.log('start first del');
 
-var orders = []
-orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000).content;
-for (let i = 0; i < orders.length; i++)
+async function firstDel()
 {
-	var orderCur = orders[i];
-	var orderCurId = orderCur.orderId;
-	await restapi.cancelOrder(orderCurId);
+		try {
+			var orders = [];
+            orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000).content;
+            console.log(typeof(orders))
+            for (let i = 0; i < orders.length; i++)
+            {
+            	var orderCur = orders[i];
+            	var orderCurId = orderCur.orderId;
+            	await restapi.cancelOrder(orderCurId);
+            }
+			//await restapi.cancelAllOrders(opts.stock + '/' + opts.base, 'all');
+		} catch (e) {
+			console.log(e);
+		}
+	
+        console.log('Cancel open orders');
 }
+console.log('end first del');
 
 
 var lastPrice = 0;

@@ -15,12 +15,12 @@ class xeggexApi {
 		else
 			this.apiURL = apiURL;
 
-        this.options = new Options({
+        this.options = {
             prefixUrl: this.apiURL,
             headers: {
-                COOKIE: 'SESSION=' + sessionKey + '; rememberMe=kHJf1J9RCy7wKI+BStATxJeRLgb2WjAZLVECy0wpyWdsiRI+d6XMieygrjsGpimPCAfEljzXKtq7XaUtfMa2DM/FvLRCmhdko5htwvu7lNbW+uQEd6xvkiU8Lv2hupicBaxN4f6GlnYd61oINZn7lEkl+q1Ymz6BaUoUdSvEmOmMDNr/qCS5RB8S9GJDkl2v//ibvN4TDY1nIcW/I2VZMbw+c+MJ40FNfjiPle/wGh1qLD4ZqnEtytuP2tX8mVUHAhcO8VaC4/8NvB3cP0owHCaM9sC+HEvdWz2uwb77nSAKIhxRADVOmLMddbJEbbAF5WRo8v8aBg8ggTb8aktW2g1Uh/teOuZEm26rycg+fRtBp1CrtNyTLLOiV12hZLB99dPCmpLmqD044Zy2y2IjaPtCsvdjstQACUZ2ffWUYpbMajdG6wv4MTSKQdS48KGPCczsddN/J6zf4EncgHYk8wa65gOxVVFnZlYAtaztuB7lsnpTfMWNJsWZsAJTwf3jzj6bGVn2NAV/doeSyWMomveZY0TwNzTL93/7BiYDTzXb; _ga=GA1.2.1228727332.1697729366; _gid=GA1.2.1394924511.1706723417'
+                Cookie: 'SESSION=7f854719-3962-42f3-8b97-9b246fe2bf4e',
             }
-        });
+        };
 		
 		return this;
 	}
@@ -182,7 +182,7 @@ class xeggexApi {
 
 
 				try {
-            		const response = await got.post('market/exchange-plate-full', {...this.options, json: {symbol: symbol}}).json();
+            		const response = await got.post('market/exchange-plate-full?symbol=' + symbol, {...this.options}).json();
 					resolve(response);
 				} catch (e) {
                     reject(e);
@@ -222,7 +222,7 @@ class xeggexApi {
         	(async () => {
 
 				try {
-            		const response = await got.post('admin/member/member-wallet/balance', {...this.options, json: {pageSize: 500, isOut: 0}}).json();
+            		const response = await got.post('admin/member/member-wallet/balance?isOut=0&pageSize=500', {...this.options}).json();
 					resolve(response);
 				} catch (e) {
                     reject(e);
@@ -246,7 +246,7 @@ class xeggexApi {
 					limit = parseInt(limit);
 					skip = parseInt(skip);
 				
-            		const response = await got.post('market/exchange-plate-full', {...this.options, json: {symbol: symbol}}).json();
+            		const response = await got.post('market/exchange-plate-full?symbol=' + symbol, {...this.options}).json();
 					resolve(response);
 				} catch (e) {
                     reject(e);
@@ -343,7 +343,7 @@ class xeggexApi {
 					//skip = parseInt(skip);
 					//since = parseInt(since);
 
-            		const response = await got.post('market/latest-trade', {...this.options, json: {symbol: symbol, size: size}}).json();
+            		const response = await got.post('market/latest-trade?symbol=' + symbol + '&size=' + size, {...this.options}).json();
 					resolve(response);
 				} catch (e) {
                     reject(e);
@@ -403,11 +403,16 @@ class xeggexApi {
             (async () => {
 
                 try {
-                    const response = await got.post('exchange/order/current', {...this.options, json: {symbol: symbol, pageNo: pageNo, pageSize: pageSize}}).json();
+                    //console.log(typeof symbol)
+                    //console.log(typeof pageNo)
+                    //console.log(typeof pageSize)
+                    const response = await got.post('exchange/order/current/?symbol=' + symbol + '&pageNo=' + pageNo + '&pageSize=' + pageSize, {...this.options}).json();
+                    console.log('del')  
                     resolve(response);
                 } catch (e) {
                     reject(e);
                 }
+                
 
             })();
 
@@ -423,7 +428,7 @@ class xeggexApi {
         	(async () => {
 
 				try {
-            		const response = await got.post('exchange/order/add', {...this.options, json: {symbol: symbol, price: price, amount: amount, direction: direction, type: type, useDiscount: useDiscount}}).json();
+            		const response = await got.post('exchange/order/add?symbol=' + symbol + '&price=' + price + '&amount=' + amount + '&direction=' + direction + '&type=' + type + '&useDiscount=' + useDiscount, {...this.options}).json();
 					resolve(response);
 				} catch (e) {
                     reject(e);
