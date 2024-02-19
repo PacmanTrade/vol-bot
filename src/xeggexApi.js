@@ -18,7 +18,7 @@ class xeggexApi {
         this.options = {
             prefixUrl: this.apiURL,
             headers: {
-                Cookie: 'SESSION=7f854719-3962-42f3-8b97-9b246fe2bf4e',
+                Cookie: 'SESSION=' + sessionKey + '; rememberMe=AIQmKdWPah4QanPHifL7Y6RSIJ9rlOLdyjc9WKK55x4vwaXbXDQawmy34yPSbccMci52s67g3BZsBl4+2s8/BPjfsz8HftlQPF5vST0ycGhTa6PlCHwUNfrjSkkwaK+zMjrj6LFM3DlyXViNFZD1SduNyevf4+6QeFacewA4oBVGIJ7NdM3EEHfQizp8sIGHT/saxzsX8Z29fwKHxcUAOnaM9+hdiPIs3ciGJXyGoF5abQvxa0v9I1KY4KBC5g+8plCiW2N18k8nSi1y1Ms0BFLa5q/BDnIfmT3PuS9c/XioMPOUbc5F5p54GYBrzlX7jclqhdAakqtj9P0gkqayXFm6EFEWYjXCZ3hHMQ8mK69D3T+KOfI3lyySqgQg052OxtLw7xN+s46yrYDiUkqIPEeYwe9mp+6ru4pa5URYthU6+2Xsh2KHjG/85PsZT7q6i2b6cx3gHeVlgqYI4M0Q2jhDuD0ys1y1mHOF/WDQNccIqu8ON9JeydTnPv7hAoBW+BatDpG/eqCgS5IxIVn+jfzFB/Giy8vrD36Vjj4WWgR4',
             }
         };
 		
@@ -214,7 +214,7 @@ class xeggexApi {
 
     }
     
-    getBalances()
+    getUnitBalances(unit)
     {
 
         return new Promise((resolve, reject) => {
@@ -222,8 +222,8 @@ class xeggexApi {
         	(async () => {
 
 				try {
-            		const response = await got.post('admin/member/member-wallet/balance?isOut=0&pageSize=500', {...this.options}).json();
-					resolve(response);
+            		const response = await got.post('uc/asset/wallet/' + unit, {...this.options}).json();
+					resolve(response.data.balance);
 				} catch (e) {
                     reject(e);
                 }
@@ -234,7 +234,7 @@ class xeggexApi {
 
     }	
 
-    getOpenOrders(symbol, limit = 50, skip = 0)
+    getOpenBuyOrders(symbol, limit = 50, skip = 0)
     {
 
         return new Promise((resolve, reject) => {
@@ -247,7 +247,31 @@ class xeggexApi {
 					skip = parseInt(skip);
 				
             		const response = await got.post('market/exchange-plate-full?symbol=' + symbol, {...this.options}).json();
-					resolve(response);
+					resolve(response.bid.items);
+				} catch (e) {
+                    reject(e);
+                }
+            
+            })();
+            
+        });
+
+    }
+    
+    getOpenSellOrders(symbol, limit = 50, skip = 0)
+    {
+
+        return new Promise((resolve, reject) => {
+        
+        	(async () => {
+
+				try {
+        			if (symbol == null) symbol = '';
+					limit = parseInt(limit);
+					skip = parseInt(skip);
+				
+            		const response = await got.post('market/exchange-plate-full?symbol=' + symbol, {...this.options}).json();
+					resolve(response.ask.items);
 				} catch (e) {
                     reject(e);
                 }
@@ -407,8 +431,9 @@ class xeggexApi {
                     //console.log(typeof pageNo)
                     //console.log(typeof pageSize)
                     const response = await got.post('exchange/order/current/?symbol=' + symbol + '&pageNo=' + pageNo + '&pageSize=' + pageSize, {...this.options}).json();
-                    console.log('del')  
-                    resolve(response);
+                    console.log(response.content)
+                    console.log(this.options.headers.Cookie)
+                    resolve(response.content);
                 } catch (e) {
                     reject(e);
                 }

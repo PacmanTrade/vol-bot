@@ -55,18 +55,18 @@ fs.writeFileSync("./pidfiles/" + opts.stock + "_" + opts.base + ".pid", process.
 const restapi = new xeggexApi(opts.sessionKey);
 
 console.log('start first del');
-
 async function firstDel()
 {
 		try {
 			var orders = [];
-            orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000).content;
-            console.log(typeof(orders))
-            for (let i = 0; i < orders.length; i++)
+            orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000);
+            console.log(orders.length)
+            for (var i = 0; i < orders.length; i++)
             {
+                
             	var orderCur = orders[i];
             	var orderCurId = orderCur.orderId;
-            	await restapi.cancelOrder(orderCurId);
+            	var res = await restapi.cancelOrder(orderCurId);
             }
 			//await restapi.cancelAllOrders(opts.stock + '/' + opts.base, 'all');
 		} catch (e) {
@@ -75,6 +75,7 @@ async function firstDel()
 	
         console.log('Cancel open orders');
 }
+firstDel();
 console.log('end first del');
 
 
@@ -88,31 +89,19 @@ var lastCheckTime = Date.now(); // ms
 runIt();
 
 // On Shutdown - Cancel open orders
-onShutdown("main", async function () {
+process.on('SIGTERM', async function () {
 
   return new Promise((resolve, reject) => {
 
     (async () => {
 
-		try {
-			var orders = []
-			orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000).content;
-			for (let i = 0; i < orders.length; i++)
-			{
-				var orderCur = orders[i];
-				var orderCurId = orderCur.orderId;
-				await restapi.cancelOrder(orderCurId);
-			}
-			//await restapi.cancelAllOrders(opts.stock + '/' + opts.base, 'all');
-		} catch (e) {
-			console.log(e);
-		}
-	
-      console.log('Cancel open orders');
+	  firstDel();
       
-      fs.unlinkSync("./pidfiles/" + opts.stock + "_" + opts.base + ".pid")
+      fs.unlinkSync("./pidfiles/" + opts.stock + "_" + opts.base + ".pid");
 
 	  console.log('Remove PID file');
+	  
+	  process.exit;
 	  
       resolve(true);
 				
@@ -192,8 +181,8 @@ async function runIt()
 	var openorderssell = [];
 	
 	try {
-		openordersbuy = await restapi.getOpenOrders(opts.stock + '/' +  opts.base).bid.items;
-		openorderssell = await restapi.getOpenOrders(opts.stock + '/' +  opts.base).ask.items;
+		openordersbuy = await restapi.getOpenBuyOrders(opts.stock + '/' +  opts.base);
+		openorderssell = await restapi.getOpenSellOrders(opts.stock + '/' +  opts.base);
 	} catch (e) {
 		console.log(e);
 	}
@@ -218,8 +207,8 @@ async function runIt()
 		// Rebuild
 		try {
 			var orders = []
-			orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000).content;
-			for (let i = 0; i < orders.length; i++)
+			orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000);
+			for (var i = 0; i < orders.length; i++)
 			{
 				var orderCur = orders[i];
 				var orderCurId = orderCur.orderId;
@@ -272,8 +261,8 @@ async function recalculate_and_enter(heavyside = null) {
 		if (marketInfo.ask.items[0].price && marketInfo.bid.items[0].price)
 		{
 
-			var bestbid = marketInfo.bids[0].price;
-			var bestask = marketInfo.asks[0].price;
+			var bestbid = marketInfo.bid.items[0].price;
+			var bestask = marketInfo.ask.items[0].price;
 
 			if (Big(lastPrice).gte(bestask) || Big(lastPrice).lte(bestbid))
 			{
@@ -286,44 +275,65 @@ async function recalculate_and_enter(heavyside = null) {
 
 		// end spread check
 
-		var account_info = [];
+		//var stock_balances = [];
+		//var base_balances = [];
 
 		try {
-			account_info = await restapi.getBalances().data.content;
+			//account_info = await restapi.getBalances();
+			var stock_balance = await restapi.getUnitBalances(opts.stock);
+			var base_balance = await restapi.getUnitBalances(opts.base);
+			console.log(typeof(stock_balance))
 		} catch (e) {
 			console.log(e);
 		}
 
-		var balances = {};
-		for (let i = 0; i < account_info.length; i++)
-		{
-
-			var thisitem = account_info[i];
-
-			balances[thisitem.unit] = thisitem.balance;
-
-		}
-
-		let base_balance = parseFloat(balances[opts.base]);
-		let stock_balance = parseFloat(balances[opts.stock]);
+		//var balances = {};
+		//for (let i = 0; i < stock_balances.length; i++)
+		//{
+		//	var thisitem = stock_balances[i];
+		//	if (typeof parseFloat(thisitem.balance) === 'number' && isFinite(parseFloat(thisitem.balance)) && parseFloat(thisitem.balance) > 0.0000001)
+		//	{
+		//	    balances[thisitem.unit] = parseFloat(balances[thisitem.unit]) + parseFloat(thisitem.balance);
+		//	}
+		//}
+		//for (let i = 0; i < base_balances.length; i++)
+		//{
+        //    
+		//	var thisitem = base_balances[i];
+		//	if (typeof parseFloat(thisitem.balance) === 'number' && isFinite(parseFloat(thisitem.balance)) && parseFloat(thisitem.balance) > 0.0000001)
+		//	{
+		//	    balances[thisitem.unit] = parseFloat(balances[thisitem.unit]) + parseFloat(thisitem.balance);
+		//	}
+		//}
+		//console.log(balances["PWR"]);
+		//console.log(balances["USDT"]);
+//
+		//let base_balance = parseFloat(balances[opts.base]);
+		//let stock_balance = parseFloat(balances[opts.stock]);
+		console.log(base_balance)
+		console.log(stock_balance)
 
 		let sell_price = null;
 		let buy_price = null;
+		
+		console.log('LP: ' + lastPrice)
+		console.log('OS: ' + opts.spread)
 
-		sell_price = (lastPrice + (lastPrice * (opts.spread / 2))).toFixed(10);
-		buy_price = (lastPrice - (lastPrice * (opts.spread / 2))).toFixed(10);
+		sell_price = (parseFloat(lastPrice) + (parseFloat(lastPrice) * (parseFloat(opts.spread) / 2))).toFixed(10);
+		console.log(sell_price);
+		buy_price = (parseFloat(lastPrice) - (parseFloat(lastPrice) * (parseFloat(opts.spread) / 2))).toFixed(10);
 
-		let quantity_stock = (stock_balance * opts.stockexposure / opts.numorders).toFixed(3);
-		let quantity_base = ((base_balance * opts.baseexposure / opts.numorders)/buy_price).toFixed(3);
+		let quantity_stock = (parseFloat(stock_balance) * parseFloat(opts.stockexposure) / parseFloat(opts.numorders)).toFixed(3);
+		let quantity_base = ((parseFloat(base_balance) * parseFloat(opts.baseexposure) / parseFloat(opts.numorders))/parseFloat(buy_price)).toFixed(3);
 
-		if (stock_balance * opts.stockexposure > opts.stockmax)
+		if (parseFloat(stock_balance) * parseFloat(opts.stockexposure) > parseFloat(opts.stockmax))
 		{
-			quantity_stock = (opts.stockmax / opts.numorders).toFixed(3);
+			quantity_stock = (parseFloat(opts.stockmax) / parseFloat(opts.numorders)).toFixed(3);
 		}
 
-		if (base_balance * opts.baseexposure > opts.basemax)
+		if (parseFloat(base_balance) * parseFloat(opts.baseexposure) > parseFloat(opts.basemax))
 		{
-			quantity_base = ((opts.basemax / opts.numorders)/buy_price).toFixed(3);
+			quantity_base = ((parseFloat(opts.basemax) / parseFloat(opts.numorders))/parseFloat(buy_price)).toFixed(3);
 		}
 
 		console.log(
