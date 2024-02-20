@@ -2,32 +2,13 @@
 
 . ./api.config
 
-spread=
 base=
 stock=
-baseexposure=
-stockexposure=
-basemax=
-stockmax=
+volume=
 
 count=0
 for i in "$@"; do
-	case $1 in 
-		--spread=*)	shift
-							spread="${i#*=}"
-							;;
-		--baseexposure=* | -be=*)	shift
-							baseexposure="${i#*=}"
-							;;
-		--stockexposure=* | -be=*)	shift
-							stockexposure="${i#*=}"
-							;;
-		--basemax=* | -be=*)	shift
-							basemax="${i#*=}"
-							;;
-		--stockmax=* | -be=*)	shift
-							stockmax="${i#*=}"
-							;;
+	case $1 in
 		--base=* | -b=*)	shift
 							base="${i#*=}"
 							;;
@@ -37,17 +18,20 @@ for i in "$@"; do
 		--numorders=*)		shift
 							numorders="${i#*=}"
 							;;
+		--volume=*)		shift
+    							volume="${i#*=}"
+    							;;
 		*) echo "invalid option passed in: $1"
 			exit 1
 	esac
 	let count=count+1
 done
 
-if [ $count -lt 8 ]; then
+if [ $count -lt 4 ]; then
 	echo -e "\n Error: Not enough arguments provided; Please make sure you have read the documentation \n"
 	exit 1
 fi
 
-node ./src/main.js --sessionKey=$sessionKey --spread=$spread --base=$base --stock=$stock --baseexposure=$baseexposure --stockexposure=$stockexposure --basemax=$basemax --stockmax=$stockmax --numorders=$numorders &> logs/$stock.$base.log &
+node ./src/main.js --sessionKey=$sessionKey --base=$base --stock=$stock --numorders=$numorders --volume=volume &> logs/$stock.$base.log &
 
 

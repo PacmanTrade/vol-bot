@@ -13,15 +13,11 @@ const argv = yargs(hideBin(process.argv)).argv
 const opts = {
     //apiKey: argv.apiKey,            	/// API key
     //apiSecret: argv.apiSecret,      	/// API secret
-	sessionKey: argv.sessionKey,		/// Bot Session Key (pacman.trade)
-    spread: argv.spread / 100,      	/// Spread to maintain
-    baseexposure: argv.baseexposure / 100,  /// Amount of base account to have exposed at a given time
-    stockexposure: argv.stockexposure / 100,  /// Amount of stock account to have exposed at a given time
-    basemax: argv.basemax,                	/// Max Qty can use for base exposure
-    stockmax: argv.stockmax,               	/// Max Qty can use for stock exposre
+	sessionKey: argv.sessionKey,
     base: argv.base,                	/// Base asset to use e.g. BTC for BTC_ETH
     stock: argv.stock,               	/// Stock to use e.g. ETH for BTC_ETH
-    numorders: parseInt(argv.numorders)	/// Number of orders per side
+    numorders: parseInt(argv.numorders),	/// Number of orders per side
+	volume: parseFloat(argv.volume)
 }
 
 // Get the command line args and save into opts
@@ -38,13 +34,9 @@ Object.keys(opts).forEach(key => {
 console.log(
     `
         Running market maker with the following options;
-        Spread: ${opts.spread}
-        Base Exposure: ${opts.baseexposure}
-        Stock Exposure: ${opts.stockexposure}
-        Base Max: ${opts.basemax}
-        Stock Max: ${opts.stockmax}
         Base Asset: ${opts.base}
         Stock Asset: ${opts.stock}
+        Volume: ${opts.volume}
         NumOrders: ${opts.numorders}
     `)
 
@@ -80,9 +72,6 @@ console.log('end first del');
 
 
 var lastPrice = 0;
-var is_initialised = false;
-var rebalancing = false;
-var lastTradeSide = null;
 var lastCheckTime = Date.now(); // ms
 
 
@@ -115,118 +104,13 @@ process.on('SIGTERM', async function () {
 async function runIt()
 {
 
-	if (!is_initialised) {
-	  await recalculate_and_enter();
-	  is_initialised = true;
-	}
-
-	// Get last trade
-	var apiresp = [];
-	
-	try {
-   		apiresp = await restapi.getTradeHistorySince(opts.stock + '/' + opts.base);
-	} catch (e) {
-		console.log(e);
-	}
-	
-	for (let t = 0; t < apiresp.length; t++)
-	{
-	
-		var thistrade = apiresp[t];
-	
-		// A Trade Has Occurred
-
-		lastTradeSide = thistrade.direction;
-		lastPrice = parseFloat(thistrade.price);
-		lastCheckTime = parseInt(thistrade.time);
-		
-		if (lastTradeSide == 'BUY') // we need to sell
-		{
-
-			//let uuid = uuidv4();
-
-    		var newprice = (lastPrice + (lastPrice * (opts.spread / 2))).toFixed(10);
-
-			try {
-    			//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
-				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, newprice, thistrade.amount, 'SELL', 'LIMIT_PRICE', 0);
-				console.log(orderinfo);
-			} catch (e) {
-				console.log(e);
-			}
-
-		}
-		else // we need to buy
-		{
-
-			//let uuid = uuidv4();
-
-    		var newprice = (lastPrice - (lastPrice * (opts.spread / 2))).toFixed(10);
-
-			try {
-    			//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'buy', thistrade.quantity, newprice, uuid);
-				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, newprice, thistrade.amount, 'BUY', 'LIMIT_PRICE', 0);
-				console.log(orderinfo);
-			} catch (e) {
-				console.log(e);
-			}
-
-		}
-
-	}
-
-	// Check open orders, if one side has less than half of original specification, then we are out of balance and need to recalculate
-	
-	var openordersbuy = [];
-	var openorderssell = [];
-	
-	try {
-		openordersbuy = await restapi.getOpenBuyOrders(opts.stock + '/' +  opts.base);
-		openorderssell = await restapi.getOpenSellOrders(opts.stock + '/' +  opts.base);
-	} catch (e) {
-		console.log(e);
-	}
-			
-	var buycount = openordersbuy.length;
-	var sellcount = openorderssell.length;
-	
-	// for (let i = 0; i < openorders.length; i++)
-	// {
-	//
-	// 	if (openorders[i].side == 'buy') buycount++;
-	// 	else sellcount++;
-	//
-	// }
-
-	if (buycount < opts.numorders/2 || sellcount < opts.numorders/2)
-	{
-	
-		var heavyside = 'BUY';
-		if (buycount < opts.numorders/2) heavyside = 'SELL';
-	
-		// Rebuild
-		try {
-			var orders = []
-			orders = await restapi.getUserOrders(opts.stock + '/' + opts.base, 0, 1000);
-			for (var i = 0; i < orders.length; i++)
-			{
-				var orderCur = orders[i];
-				var orderCurId = orderCur.orderId;
-				await restapi.cancelOrder(orderCurId);
-			}
-		} catch (e) {
-			console.log(e);
-		}
-		
-		await recalculate_and_enter(heavyside);
-		
-	}
+	await recalculate_and_enter();
 
 	setTimeout(function() {
 	
 		runIt();
 	
-	},30000);
+	},24 * 3600000);
 
 
 }
@@ -282,7 +166,6 @@ async function recalculate_and_enter(heavyside = null) {
 			//account_info = await restapi.getBalances();
 			var stock_balance = await restapi.getUnitBalances(opts.stock);
 			var base_balance = await restapi.getUnitBalances(opts.base);
-			console.log(typeof(stock_balance))
 		} catch (e) {
 			console.log(e);
 		}
@@ -313,115 +196,31 @@ async function recalculate_and_enter(heavyside = null) {
 		console.log(base_balance)
 		console.log(stock_balance)
 
-		let sell_price = null;
-		let buy_price = null;
-		
-		console.log('LP: ' + lastPrice)
-		console.log('OS: ' + opts.spread)
-
-		sell_price = (parseFloat(lastPrice) + (parseFloat(lastPrice) * (parseFloat(opts.spread) / 2))).toFixed(10);
-		console.log(sell_price);
-		buy_price = (parseFloat(lastPrice) - (parseFloat(lastPrice) * (parseFloat(opts.spread) / 2))).toFixed(10);
-
-		let quantity_stock = (parseFloat(stock_balance) * parseFloat(opts.stockexposure) / parseFloat(opts.numorders)).toFixed(3);
-		let quantity_base = ((parseFloat(base_balance) * parseFloat(opts.baseexposure) / parseFloat(opts.numorders))/parseFloat(buy_price)).toFixed(3);
-
-		if (parseFloat(stock_balance) * parseFloat(opts.stockexposure) > parseFloat(opts.stockmax))
-		{
-			quantity_stock = (parseFloat(opts.stockmax) / parseFloat(opts.numorders)).toFixed(3);
-		}
-
-		if (parseFloat(base_balance) * parseFloat(opts.baseexposure) > parseFloat(opts.basemax))
-		{
-			quantity_base = ((parseFloat(opts.basemax) / parseFloat(opts.numorders))/parseFloat(buy_price)).toFixed(3);
-		}
-
-		console.log(
-			`
-			Entering orders:
-				Buy amount (${opts.stock}): ${quantity_base}
-				Buy price (${opts.base}): ${buy_price}
-
-				Sell amount (${opts.stock}): ${quantity_stock}
-				Sell price (${opts.base}): ${sell_price}
-
-				Last Price: ${lastPrice}
-
-				Num Orders: ${opts.numorders}
-			`)
-
-
-
-		var slidermin = parseInt(opts.numorders / 2) - opts.numorders;
-
-		for (const side of ["buy", "sell"]) {
-
-		  var adjstart = slidermin;
-
-		  for (let i = 0; i < opts.numorders; i++)
-		  {
-
-			let uuid = uuidv4();
-
-			var slidequantity = 0;
-
-			if (side === "BUY")
-			{
-
-				var adjust = Big(quantity_base).times(adjstart).div(opts.numorders).toFixed(8);
-
-				if (heavyside == 'BUY')
-				{
-
-					let heavyOrders = Big(opts.numorders).times(0.80);
-
-					adjust = Big(quantity_base).times(adjstart).div(heavyOrders).toFixed(8);
-
-				}
-
-				slidequantity = Big(quantity_base).plus(adjust).toFixed(8);
-
-			}
-			else
-			{
-
-				var adjust = Big(quantity_stock).times(adjstart).div(opts.numorders).toFixed(8);
-
-				if (heavyside == 'SELL')
-				{
-
-					let heavyOrders = Big(opts.numorders).times(0.80);
-
-					adjust = Big(quantity_stock).times(adjstart).div(heavyOrders).toFixed(8);
-
-				}
-
-				slidequantity = Big(quantity_stock).plus(adjust).toFixed(8);
-
-			}
-
-			adjstart = adjstart + 1;
-
+		var quantity_vol = (opts.volume / opts.numorders).toFixed(10)
+		for (var j = 0; j < opts.numorders; j++) {
 			try {
-				//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, side, slidequantity, side === "buy" ? buy_price : sell_price, uuid);
-				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, side === 'BUY' ? buy_price : sell_price, slidequantity, side, 'LIMIT_PRICE', 0);
+				//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
+				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, lastPrice, quantity_vol, 'BUY', 'LIMIT_PRICE', 0);
 				console.log(orderinfo);
 			} catch (e) {
 				console.log(e);
 			}
-
-			if (side == 'BUY')
-			{
-				buy_price = (parseFloat(buy_price) - (parseFloat(buy_price) * (opts.spread / 2))).toFixed(10);
+			try {
+				//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
+				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, lastPrice, quantity_vol, 'SELL', 'LIMIT_PRICE', 0);
+				console.log(orderinfo);
+			} catch (e) {
+				console.log(e);
 			}
-			else
-			{
-				sell_price = (parseFloat(sell_price) + (parseFloat(sell_price) * (opts.spread / 2))).toFixed(10);
-			}
-
-		  }
-
 		}
+
+		console.log(
+			`
+			Made ${opts.numorders} orders:
+				1 order: ${quantity_vol} ${opts.stock}, price: ${lastPrice} ${opts.base}
+				All volume orders (${opts.stock}): ${opts.volume}
+			`)
+
 
     }
     else
