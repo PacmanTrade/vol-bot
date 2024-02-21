@@ -16,7 +16,6 @@ const opts = {
 	sessionKey: argv.sessionKey,
     base: argv.base,                	/// Base asset to use e.g. BTC for BTC_ETH
     stock: argv.stock,               	/// Stock to use e.g. ETH for BTC_ETH
-    numorders: parseInt(argv.numorders),	/// Number of orders per side
 	volume: parseFloat(argv.volume)
 }
 
@@ -37,7 +36,6 @@ console.log(
         Base Asset: ${opts.base}
         Stock Asset: ${opts.stock}
         Volume: ${opts.volume}
-        NumOrders: ${opts.numorders}
     `)
 
 console.log(opts.stock + '_' + opts.base + " process id is " + process.pid);
@@ -74,7 +72,6 @@ console.log('end first del');
 var lastPrice = 0;
 var lastCheckTime = Date.now(); // ms
 
-
 runIt();
 
 // On Shutdown - Cancel open orders
@@ -105,12 +102,12 @@ async function runIt()
 {
 
 	await recalculate_and_enter();
-
+    var randTime = Math.ceil(Math.random() * 40 - 20) * 1000;
 	setTimeout(function() {
 	
 		runIt();
 	
-	},24 * 3600000);
+	}, 60000 + randTime);
 
 
 }
@@ -122,6 +119,10 @@ async function runIt()
 async function recalculate_and_enter(heavyside = null) {
 
 	console.log('recalulate and enter');
+	
+	var orderVol = Math.ceil(opts.volume / 24 / 60);
+	var randVol = Math.ceil(Math.random() * orderVol - (orderVol / 2));
+    orderVol = orderVol + randVol;
 
     var htrades = [];
 
@@ -147,13 +148,10 @@ async function recalculate_and_enter(heavyside = null) {
 
 			var bestbid = marketInfo.bid.items[0].price;
 			var bestask = marketInfo.ask.items[0].price;
+			console.log(bestbid);
+			console.log(bestask);
 
-			if (Big(lastPrice).gte(bestask) || Big(lastPrice).lte(bestbid))
-			{
-
-				lastPrice = Big(bestask).plus(bestbid).div(2).toFixed(10);
-
-			}
+			lastPrice = ((bestask + bestbid) / 2).toFixed(10);
 
 		}
 
@@ -195,29 +193,25 @@ async function recalculate_and_enter(heavyside = null) {
 		//let stock_balance = parseFloat(balances[opts.stock]);
 		console.log(base_balance)
 		console.log(stock_balance)
-
-		var quantity_vol = (opts.volume / opts.numorders).toFixed(10)
-		for (var j = 0; j < opts.numorders; j++) {
-			try {
-				//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
-				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, lastPrice, quantity_vol, 'BUY', 'LIMIT_PRICE', 0);
-				console.log(orderinfo);
-			} catch (e) {
-				console.log(e);
-			}
-			try {
-				//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
-				var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, lastPrice, quantity_vol, 'SELL', 'LIMIT_PRICE', 0);
-				console.log(orderinfo);
-			} catch (e) {
-				console.log(e);
-			}
+		try {
+			//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
+			var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, lastPrice, orderVol, 'BUY', 'LIMIT_PRICE', 0);
+			console.log(orderinfo);
+		} catch (e) {
+			console.log(e);
+		}
+		try {
+			//var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, 'sell', thistrade.quantity, newprice, uuid);
+			var orderinfo = await restapi.createLimitOrder(opts.stock + '/' +  opts.base, lastPrice, orderVol, 'SELL', 'LIMIT_PRICE', 0);
+			console.log(orderinfo);
+		} catch (e) {
+			console.log(e);
 		}
 
 		console.log(
 			`
-			Made ${opts.numorders} orders:
-				1 order: ${quantity_vol} ${opts.stock}, price: ${lastPrice} ${opts.base}
+			Making order every 1 min:
+				1 order: ${orderVol} ${opts.stock}, price: ${lastPrice} ${opts.base}
 				All volume orders (${opts.stock}): ${opts.volume}
 			`)
 

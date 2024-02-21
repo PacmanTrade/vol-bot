@@ -15,9 +15,6 @@ for i in "$@"; do
 		--stock=* | -s=*) 	shift
 							stock="${i#*=}"
 							;;
-		--numorders=*)		shift
-							numorders="${i#*=}"
-							;;
 		--volume=*)		shift
     							volume="${i#*=}"
     							;;
@@ -27,11 +24,11 @@ for i in "$@"; do
 	let count=count+1
 done
 
-if [ $count -lt 4 ]; then
+if [ $count -lt 3 ]; then
 	echo -e "\n Error: Not enough arguments provided; Please make sure you have read the documentation \n"
 	exit 1
 fi
 
-node ./src/main.js --sessionKey=$sessionKey --base=$base --stock=$stock --numorders=$numorders --volume=volume &> logs/$stock.$base.log &
+node ./src/main.js --sessionKey=$sessionKey --base=$base --stock=$stock --volume=$volume &> logs/$stock.$base.log &
 
 
